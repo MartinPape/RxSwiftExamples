@@ -24,9 +24,9 @@ class ViewController: UIViewController {
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var searchBar: UISearchBar!
     
-    let dataSource = RxTableViewSectionedReloadDataSource<DefaultSection>()
-    var shownCitiesSection: DefaultSection!
-    var allCities = [String]()
+    var dataSource: RxTableViewSectionedReloadDataSource<DefaultSection>?
+    var shownCitiesSection: DefaultSection?
+    let allCities = ["New York", "London", "Oslo", "Warsaw", "Berlin", "Praga"]
     var sections = PublishSubject<[DefaultSection]>()
     
     override func viewDidLoad() {
@@ -35,41 +35,40 @@ class ViewController: UIViewController {
     }
     
     func setup() {
-        allCities = ["New York", "London", "Oslo", "Warsaw", "Berlin", "Praga"]
         shownCitiesSection = DefaultSection(header: "Cities", items: allCities.toItems(), updated: Date())
-        sections.onNext([shownCitiesSection])
-        dataSource.configureCell = { (_, tableView, indexPath, index) in
+        sections.onNext([shownCitiesSection!])
+        dataSource = RxTableViewSectionedReloadDataSource<DefaultSection>(configureCell: { (_, tableView, indexPath, index) in
             let cell = tableView.dequeueReusableCell(withIdentifier: "cityPrototypeCell", for: indexPath)
-            cell.textLabel?.text = self.shownCitiesSection.items[indexPath.row].title
+            cell.textLabel?.text = self.shownCitiesSection!.items[indexPath.row].title
             return cell
-        }
+        })
         
         sections
             .asObservable()
-            .bindTo(tableView.rx.items(dataSource: dataSource))
-            .addDisposableTo(rx_disposeBag) // Instead of creating the bag again and again, use the extension NSObject_rx
+            .bind(to: tableView.rx.items(dataSource: dataSource!))
+            .disposed(by: rx.disposeBag) // Instead of creating the bag again and again, use the extension NSObject_rx
         
         searchBar
             .rx.text
             .filter { $0 != nil }
             .map { $0! }
-            .debounce(0.5, scheduler: MainScheduler.instance)
+            .debounce(RxTimeInterval.milliseconds(500), scheduler: MainScheduler.instance)
             .distinctUntilChanged()
             .subscribe(onNext: { [unowned self] query in
                 let items: [String]
-                if query.characters.count > 0 {
+                if query.count > 0 {
                     items = self.allCities.filter { $0.hasPrefix(query) }
                 } else {
                     items = self.allCities
                 }
                 self.shownCitiesSection = DefaultSection(
-                    original: self.shownCitiesSection,
+                    original: self.shownCitiesSection!,
                     items: items.toItems()
                 )
 
-                self.sections.onNext([self.shownCitiesSection])
+                self.sections.onNext([self.shownCitiesSection!])
             })
-            .addDisposableTo(rx_disposeBag)
+            .disposed(by: rx.disposeBag)
     }
 
 }
