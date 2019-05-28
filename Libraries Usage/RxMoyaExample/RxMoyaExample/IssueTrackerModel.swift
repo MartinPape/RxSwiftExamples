@@ -15,7 +15,7 @@ import RxSwift
 
 struct IssueTrackerModel {
     
-    let provider: RxMoyaProvider<GitHub>
+    let provider: MoyaProvider<GitHub>
     let repositoryName: Observable<String>
     
     func trackIssues() -> Observable<[Issue]> {
@@ -36,16 +36,18 @@ struct IssueTrackerModel {
     }
     
     internal func findIssues(_ repository: Repository) -> Observable<[Issue]?> {
-        return self.provider
+        return self.provider.rx
             .request(GitHub.issues(repositoryFullName: repository.fullName))
             .debug()
-            .mapArrayOptional(type: Issue.self)
+            .asObservable()
+            .mapOptional(to: [Issue].self)
     }
 
     internal func findRepository(_ name: String) -> Observable<Repository?> {
-        return self.provider
+        return self.provider.rx
             .request(GitHub.repo(fullName: name))
             .debug()
-            .mapObjectOptional(type: Repository.self)
+            .asObservable()
+            .mapOptional(to: Repository.self)
     }
 }
